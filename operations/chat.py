@@ -44,16 +44,6 @@ class ChatOperations:
     ) -> ChatResponse:
         """
         Create a new chat.
-        
-        Args:
-            title (str): Chat title.
-            models (List[str]): List of model IDs to use.
-            initial_message (Optional[str]): Optional initial message.
-            enable_thinking (bool): Enable thinking mode.
-            features (List[MCPFeature]): MCP features configuration.
-        
-        Returns:
-            ChatResponse: ChatResponse object.
         """
         models = models or ["0727-360B-API"]
         features = features or [
@@ -78,15 +68,7 @@ class ChatOperations:
         return ChatResponse.from_dict(response.json())
     
     def _build_chat_payload(self, chat: Chat) -> Dict:
-        """
-        Build chat creation payload.
-        
-        Args:
-            chat (Chat): Chat object.
-        
-        Returns:
-            Dict: Chat creation payload.
-        """
+        """Build chat creation payload."""
         return {
             "chat": {
                 "id": chat.id,
@@ -138,20 +120,11 @@ class ChatOperations:
         chat_id: str,
         messages: List[Dict[str, str]],
         model: str = "0727-360B-API",
-        enable_thinking: bool = True
+        enable_thinking: bool = True,
+        web_search: bool = False,
+        image_generation: bool = False
     ) -> ChatCompletionResponse:
-        """
-        Complete chat and return full response.
-        
-        Args:
-            chat_id (str): Chat ID.
-            messages (List[Dict[str, str]]): List of messages.
-            model (str): Model ID.
-            enable_thinking (bool): Enable thinking mode.
-        
-        Returns:
-            ChatCompletionResponse: ChatCompletionResponse with complete content.
-        """
+        """Complete chat and return full response."""
         content = ""
         thinking = ""
         usage = None
@@ -163,6 +136,8 @@ class ChatOperations:
             messages=messages,
             model=model,
             enable_thinking=enable_thinking,
+            web_search=web_search,
+            image_generation=image_generation,
             model_ops=self.model_ops
         ):
             if chunk.phase == "thinking":
@@ -194,27 +169,16 @@ class ChatOperations:
         self,
         message: str,
         model: str = "glm-4.5v",
+        system_prompt: Optional[str] = None,
         enable_thinking: bool = True,
+        web_search: bool = False,
+        image_generation: bool = False,
         chat_title: str = "Simple Chat",
         temperature: float = None,
         top_p: float = None,
         max_tokens: int = None
     ) -> ChatCompletionResponse:
-        """
-        Simple one-shot chat completion using the actual Z.AI API.
-        
-        Args:
-            message (str): User message.
-            model (str): Model ID (e.g., 'glm-4.5v', '0727-360B-API').
-            enable_thinking (bool): Enable thinking mode.
-            chat_title (str): Chat title.
-            temperature (float): Controls randomness (0.0-2.0, default varies by model).
-            top_p (float): Controls diversity (0.0-1.0, default varies by model).
-            max_tokens (int): Maximum response length (default varies by model).
-        
-        Returns:
-            ChatCompletionResponse: ChatCompletionResponse with AI response.
-        """
+        """Simple one-shot chat completion using the actual Z.AI API."""
         chat_id = str(uuid.uuid4())
         message_id = str(uuid.uuid4())
         timestamp = int(time.time())
@@ -234,15 +198,14 @@ class ChatOperations:
             if not actual_chat_id:
                 raise ZAIError("Failed to create chat - no chat ID returned")
             
-            current_message_id = None
-            if "chat" in chat_data and "history" in chat_data["chat"]:
-                current_message_id = chat_data["chat"]["history"].get("currentId")
-            
-            if not current_message_id:
-                current_message_id = message_id
+            messages = []
+            if system_prompt:
+                messages.append({"role": "system", "content": system_prompt})
+            messages.append({"role": "user", "content": message})
             
             return self._complete_simple_chat(
-                actual_chat_id, message, model, enable_thinking,
+                actual_chat_id, messages, model, enable_thinking,
+                web_search, image_generation,
                 temperature, top_p, max_tokens
             )
             
@@ -259,21 +222,7 @@ class ChatOperations:
         enable_thinking: bool,
         timestamp: int
     ) -> Dict:
-        """
-        Build simple chat creation payload.
-        
-        Args:
-            chat_id (str): Chat ID.
-            message_id (str): Message ID.
-            message (str): User message.
-            model (str): Model ID.
-            chat_title (str): Chat title.
-            enable_thinking (bool): Enable thinking mode.
-            timestamp (int): Timestamp.
-        
-        Returns:
-            Dict: Simple chat creation payload.
-        """
+        """Build simple chat creation payload."""
         return {
             "chat": {
                 "id": "",
@@ -314,37 +263,25 @@ class ChatOperations:
     def _complete_simple_chat(
         self,
         chat_id: str,
-        message: str,
+        messages: List[Dict[str, str]],
         model: str,
         enable_thinking: bool,
+        web_search: bool,
+        image_generation: bool,
         temperature: float,
         top_p: float,
         max_tokens: int
     ) -> ChatCompletionResponse:
-        """
-        Complete simple chat streaming.
-        
-        Args:
-            chat_id (str): Actual chat ID.
-            message (str): User message.
-            model (str): Model ID.
-            enable_thinking (bool): Enable thinking mode.
-            temperature (float): Temperature parameter.
-            top_p (float): Top-p parameter.
-            max_tokens (int): Max tokens parameter.
-        
-        Returns:
-            ChatCompletionResponse: Completed chat response.
-        """
+        """Complete simple chat streaming."""
         completion_payload = {
             "stream": True,
             "model": model,
-            "messages": [{"role": "user", "content": message}],
+            "messages": messages,
             "params": {},
             "features": {
-                "image_generation": False,
-                "web_search": False,
-                "auto_web_search": False,
+                "image_generation": image_generation,
+                "web_search": web_search,
+                "auto_web_search": web_search,
                 "preview_mode": True,
                 "flags": [],
                 "features": [
@@ -372,12 +309,7 @@ class ChatOperations:
                 self.http_client.session.headers["referer"] = original_referer
     
     def _get_variables(self) -> Dict[str, str]:
-        """
-        Get template variables.
-        
-        Returns:
-            Dict[str, str]: Template variables dictionary.
-        """
+        """Get template variables."""
         return {
             "{{USER_NAME}}": self.auth_data.get('name', 'Guest') if self.auth_data else 'Guest',
             "{{USER_LOCATION}}": "Unknown",
@@ -390,15 +322,7 @@ class ChatOperations:
         }
     
     def _parse_stream_response(self, stream_response) -> ChatCompletionResponse:
-        """
-        Parse streaming response.
-        
-        Args:
-            stream_response: Streaming response object.
-        
-        Returns:
-            ChatCompletionResponse: Parsed completion response.
-        """
+        """Parse streaming response."""
         import json
         
         content = ""
