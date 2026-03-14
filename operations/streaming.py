@@ -28,6 +28,8 @@ class StreamingOperations:
         messages: List[Dict[str, str]],
         model: str = "0727-360B-API",
         enable_thinking: bool = True,
+        web_search: bool = False,
+        image_generation: bool = False,
         features: Optional[Dict[str, Any]] = None,
         variables: Optional[Dict[str, str]] = None,
         model_ops: Optional[Any] = None
@@ -40,6 +42,8 @@ class StreamingOperations:
             messages (List[Dict[str, str]]): List of messages in OpenAI format.
             model (str): Model ID to use.
             enable_thinking (bool): Enable thinking phase.
+            web_search (bool): Enable web search grounding.
+            image_generation (bool): Enable image generation.
             features (Optional[Dict[str, Any]]): Features configuration.
             variables (Optional[Dict[str, str]]): Template variables.
             model_ops (Optional[Any]): Model operations instance.
@@ -48,7 +52,7 @@ class StreamingOperations:
             StreamingChunk: StreamingChunk objects.
         """
         if features is None:
-            features = self._get_default_features(enable_thinking)
+            features = self._get_default_features(enable_thinking, web_search, image_generation)
         
         if variables is None:
             variables = self._get_default_variables()
@@ -82,20 +86,14 @@ class StreamingOperations:
                     if chunk.done:
                         break
     
-    def _get_default_features(self, enable_thinking: bool) -> Dict[str, Any]:
+    def _get_default_features(self, enable_thinking: bool, web_search: bool = False, image_generation: bool = False) -> Dict[str, Any]:
         """
         Get default features configuration.
-        
-        Args:
-            enable_thinking (bool): Enable thinking mode.
-        
-        Returns:
-            Dict[str, Any]: Default features configuration.
         """
         return {
-            "image_generation": False,
-            "web_search": False,
-            "auto_web_search": False,
+            "image_generation": image_generation,
+            "web_search": web_search,
+            "auto_web_search": web_search,
             "preview_mode": True,
             "flags": [],
             "features": [
@@ -109,9 +107,6 @@ class StreamingOperations:
     def _get_default_variables(self) -> Dict[str, str]:
         """
         Get default template variables.
-        
-        Returns:
-            Dict[str, str]: Default template variables.
         """
         return {
             "{{USER_NAME}}": "Guest",
@@ -125,16 +120,7 @@ class StreamingOperations:
         }
     
     def _get_model_item(self, model: str, model_ops: Optional[Any]) -> Dict:
-        """
-        Get model item configuration.
-        
-        Args:
-            model (str): Model ID.
-            model_ops (Optional[Any]): Model operations instance.
-        
-        Returns:
-            Dict: Model item configuration.
-        """
+        """Get model item configuration."""
         if model_ops:
             model_obj = model_ops.get_model_by_id(model)
             model_item = {
@@ -163,15 +149,7 @@ class StreamingOperations:
         return {"id": model, "name": model}
     
     def _create_streaming_chunk(self, data: Dict[str, Any]) -> StreamingChunk:
-        """
-        Create StreamingChunk from parsed data.
-        
-        Args:
-            data (Dict[str, Any]): Parsed SSE data.
-        
-        Returns:
-            StreamingChunk: Created streaming chunk.
-        """
+        """Create StreamingChunk from parsed data."""
         chunk_data = data.get("data", {})
         
         return StreamingChunk(
