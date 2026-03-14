@@ -134,6 +134,8 @@ class ZAIClient:
         messages: List[Dict[str, str]],
         model: str = "0727-360B-API",
         enable_thinking: bool = True,
+        web_search: bool = False,
+        image_generation: bool = False,
         features: Optional[Dict] = None,
         variables: Optional[Dict[str, str]] = None
     ) -> Generator[StreamingChunk, None, None]:
@@ -145,6 +147,8 @@ class ZAIClient:
             messages (List[Dict[str, str]]): List of messages in OpenAI format.
             model (str): Model ID to use.
             enable_thinking (bool): Enable thinking phase.
+            web_search (bool): Enable web search grounding.
+            image_generation (bool): Enable image generation.
             features (Optional[Dict]): Features configuration.
             variables (Optional[Dict[str, str]]): Template variables.
         
@@ -156,6 +160,8 @@ class ZAIClient:
             messages=messages,
             model=model,
             enable_thinking=enable_thinking,
+            web_search=web_search,
+            image_generation=image_generation,
             features=features,
             variables=variables,
             model_ops=self.model_ops
@@ -166,7 +172,9 @@ class ZAIClient:
         chat_id: str,
         messages: List[Dict[str, str]],
         model: str = "0727-360B-API",
-        enable_thinking: bool = True
+        enable_thinking: bool = True,
+        web_search: bool = False,
+        image_generation: bool = False
     ) -> ChatCompletionResponse:
         """
         Complete chat and return full response.
@@ -176,6 +184,8 @@ class ZAIClient:
             messages (List[Dict[str, str]]): List of messages.
             model (str): Model ID.
             enable_thinking (bool): Enable thinking mode.
+            web_search (bool): Enable web search capability.
+            image_generation (bool): Enable image generation capability.
         
         Returns:
             ChatCompletionResponse: ChatCompletionResponse with complete content.
@@ -184,14 +194,19 @@ class ZAIClient:
             chat_id=chat_id,
             messages=messages,
             model=model,
-            enable_thinking=enable_thinking
+            enable_thinking=enable_thinking,
+            web_search=web_search,
+            image_generation=image_generation
         )
     
     def simple_chat(
         self,
         message: str,
         model: str = "glm-4.5v",
+        system_prompt: Optional[str] = None,
         enable_thinking: bool = True,
+        web_search: bool = False,
+        image_generation: bool = False,
         chat_title: str = "Simple Chat",
         temperature: float = None,
         top_p: float = None,
@@ -203,7 +218,10 @@ class ZAIClient:
         Args:
             message (str): User message.
             model (str): Model ID (e.g., 'glm-4.5v', '0727-360B-API').
+            system_prompt (str, optional): System instructions for the model.
             enable_thinking (bool): Enable thinking mode.
+            web_search (bool): Grant web search access.
+            image_generation (bool): Enable dynamic image generation.
             chat_title (str): Chat title.
             temperature (float): Controls randomness (0.0-2.0, default varies by model).
             top_p (float): Controls diversity (0.0-1.0, default varies by model).
@@ -215,7 +233,10 @@ class ZAIClient:
         return self.chat_ops.simple_chat(
             message=message,
             model=model,
+            system_prompt=system_prompt,
             enable_thinking=enable_thinking,
+            web_search=web_search,
+            image_generation=image_generation,
             chat_title=chat_title,
             temperature=temperature,
             top_p=top_p,
